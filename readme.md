@@ -2,20 +2,21 @@
 
 The math equation has some problem, here is my hot patch.
 
+Thanks to notion-py and md2notion
+- https://github.com/jamalex/notion-py
+- https://github.com/Cobertos/md2notion
 
 ```python
-from notion.client import NotionClient
-
 from os import listdir
 from os.path import isfile, join
-from pathlib import Path
-import urllib
 
+from notion.client import NotionClient
 from notion.block import PageBlock
-from md2notion.upload import convert, uploadBlock, upload
-from md2notion.NotionPyRenderer import NotionPyRenderer, addHtmlImgTagExtension, addLatexExtension
+from md2notion.upload import convert, uploadBlock
+from md2notion.NotionPyRenderer import addHtmlImgTagExtension, addLatexExtension
 
 from custom.md import convert, CustomNotionPyRenderer
+
 
 # Obtain the `token_v2` value by inspecting your browser cookies on a logged-in (non-guest) session on Notion.so
 client = NotionClient(token_v2="")
@@ -24,8 +25,9 @@ client.get_top_level_pages()
 
 page = client.get_block('')
 
+folder_name = 'markdown'
 
-onlyfiles = [join('markdown', f) for f in listdir('markdown') if isfile(join('markdown', f))]
+onlyfiles = [join(folder_name, f) for f in listdir(folder_name) if isfile(join(folder_name, f))]
 
 
 for file in onlyfiles:
@@ -34,7 +36,6 @@ for file in onlyfiles:
 
         rendered = convert(mdFile,addHtmlImgTagExtension(addLatexExtension(CustomNotionPyRenderer)))
         for blockDescriptor in rendered:
-            print(mdFile)
+            print(blockDescriptor)
             uploadBlock(blockDescriptor, newPage, mdFile.name)
-
 ```
