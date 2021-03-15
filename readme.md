@@ -7,6 +7,9 @@ Thanks to notion-py and md2notion
 - https://github.com/Cobertos/md2notion
 
 ```python
+from os import listdir
+from os.path import isfile, join
+
 from notion.client import NotionClient
 from notion.block import PageBlock
 from md2notion.upload import uploadBlock
@@ -22,12 +25,17 @@ client.get_top_level_pages()
 
 page = client.get_block('')
 
+folder_name = 'markdown'
 
-with open('test.md', "r", encoding="utf-8") as mdFile:
-    newPage = page.children.add_new(PageBlock, title=mdFile.name)
+onlyfiles = [join(folder_name, f) for f in listdir(folder_name) if isfile(join(folder_name, f))]
 
-    rendered = convert(mdFile, addHtmlImgTagExtension(addLatexExtension(CustomNotionPyRenderer)))
-    for blockDescriptor in rendered:
-        print(blockDescriptor)
-        uploadBlock(blockDescriptor, newPage, mdFile.name)
+
+for file in onlyfiles:
+    with open(file, "r", encoding="utf-8") as mdFile:
+        newPage = page.children.add_new(PageBlock, title=mdFile.name)
+
+        rendered = convert(mdFile, addHtmlImgTagExtension(addLatexExtension(CustomNotionPyRenderer)))
+        for blockDescriptor in rendered:
+            print(blockDescriptor)
+            uploadBlock(blockDescriptor, newPage, mdFile.name)
 ```
