@@ -4,14 +4,14 @@ from mistletoe import span_token
 from mistletoe.span_token import RawText
 from mistletoe.block_token import tokenize
 from mistletoe import core_tokens
-
+import itertools
 
 import re
 
-from md2notion.NotionPyRenderer import NotionPyRenderer, SpanToken, addLatexExtension, BlockEquation
+from md2notion.NotionPyRenderer import NotionPyRenderer
 
-from notion.block import EquationBlock, field_map
-
+from notion.block import field_map, BasicBlock
+from mistletoe.block_token import Document
 
 import re
 
@@ -68,16 +68,16 @@ def find_core_tokens(string, root):
 
 core_tokens.find_core_tokens = find_core_tokens
 
-class CustomEquationBlock(EquationBlock):
+
+class CustomEquationBlock(BasicBlock):
 
     latex = field_map(
-        ["properties", "title_plaintext"],
+        ["properties", "title"],
         python_to_api=lambda x: [[x]],
         api_to_python=lambda x: x[0][0],
     )
 
     _type = "equation"
-
 
 class CustomNotionPyRenderer(NotionPyRenderer):
     
@@ -85,7 +85,7 @@ class CustomNotionPyRenderer(NotionPyRenderer):
         def blockFunc(blockStr):
             return {
                 'type': CustomEquationBlock,
-                'title_plaintext': blockStr #.replace('\\', '\\\\')
+                'title_plaintext': blockStr.strip() #.replace('\\', '\\\\')
             }
         return self.renderMultipleToStringAndCombine(token.children, blockFunc)
     
@@ -95,30 +95,36 @@ class CustomNotionPyRenderer(NotionPyRenderer):
 
 
 
-
 class Document(BlockToken):
+    """
+    Document token.
+    """
     def __init__(self, lines):
         if isinstance(lines, str):
             lines = lines.splitlines(keepends=True)
-        else:
-            txt = lines.read()
-            pattern = re.compile(r'( {0,3})((?:\$){2,}) *(\S*)')
-            txt_list = re.split(pattern, txt)
-            for i, string in enumerate(txt_list):
-                if string == '':
-                    txt_list[i] = '\n'
-            lines = ''.join(txt_list)
-            lines = lines.splitlines(keepends=True)
         lines = [line if line.endswith('\n') else '{}\n'.format(line) for line in lines]
+
+        # add new line above and below '$$\n'
+        new_lines = []
+        for (i, line) in enumerate(lines):
+            new_line = [None, line, None]
+            if i > 0 and i < len(lines) - 2:
+                if line == '$$\n' and lines[i-1][0] != '\n':
+                    new_line[0] = '\n'
+                if line == '$$\n' and lines[i+1][0] != '\n':
+                    new_line[2] = '\n'
+            new_lines.append(new_line)
+        new_lines = list(itertools.chain(*new_lines))
+        new_lines = list(filter(lambda x: x is not None, new_lines))
+        new_lines = ''.join(new_lines)
+        lines = new_lines.splitlines(keepends=True)
+        lines = [line if line.endswith('\n') else '{}\n'.format(line) for line in lines]
+
         self.footnotes = {}
         global _root_node
         _root_node = self
         span_token._root_node = self
         self.children = tokenize(lines)
-        for t in self.children:
-            if hasattr(t, 'children'):
-                for i in t.children:
-                    print(i.__dict__)
         span_token._root_node = None
         _root_node = None
 
